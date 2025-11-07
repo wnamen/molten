@@ -51,7 +51,7 @@ class ChatResponse(BaseModel):
 def initialize_engine(
     model_path: str,
     tensor_parallel_size: int = 1,
-    max_model_len: int = 65536,  # Cap at 64K for budget
+    max_model_len: int = 32768,  # Reduced to 32K to save memory
     dtype: str = "bfloat16",
     trust_remote_code: bool = True,
 ):
@@ -66,7 +66,8 @@ def initialize_engine(
         trust_remote_code=trust_remote_code,
         enable_lora=False,  # Will enable later for PEFT
         block_size=16,
-        gpu_memory_utilization=0.9,
+        gpu_memory_utilization=0.85,  # Reduced from 0.9 to leave more headroom
+        quantization="fp8",  # Explicitly set FP8 quantization
     )
 
     engine = AsyncLLMEngine.from_engine_args(engine_args)
@@ -78,7 +79,9 @@ async def lifespan(app: FastAPI):
     """Lifespan context manager for startup/shutdown."""
     # Startup
     model_path = os.getenv("MODEL_PATH", "MoonshotAI/Kimi-K2-Instruct")
-    max_len = int(os.getenv("MAX_MODEL_LEN", "65536"))
+    max_len = int(
+        os.getenv("MAX_MODEL_LEN", "32768")
+    )  # Reduced from 65536 to save memory
     tensor_parallel = int(os.getenv("TENSOR_PARALLEL_SIZE", "1"))
 
     print(f"Initializing K2-Instruct from {model_path}")
