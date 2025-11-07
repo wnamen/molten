@@ -1,0 +1,14 @@
+vllm>=0.6.0
+transformers>=4.40.0
+torch>=2.1.0
+accelerate
+huggingface-hub
+fastapi>=0.104.0
+uvicorn[standard]>=0.24.0
+pydantic>=2.0.0
+openai>=1.0.0
+anthropic>=0.18.0
+requests
+numpy
+pandas
+

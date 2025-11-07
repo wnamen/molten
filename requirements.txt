@@ -1,0 +1,28 @@
+# Core dependencies
+torch>=2.1.0
+transformers>=4.40.0
+accelerate>=0.25.0
+openai>=1.0.0
+requests
+numpy
+pandas
+
+# vLLM (install separately on GPU machine)
+# vllm>=0.6.0
+
+# PEFT (for fine-tuning)
+peft>=0.7.0
+datasets>=2.14.0
+bitsandbytes>=0.41.0
+
+# MLE-bench (install from git)
+# pip install -e git+https://github.com/openai/mle-bench.git#egg=mlebench
+
+# Kaggle API
+kaggle
+
+# FastAPI for serving
+fastapi>=0.104.0
+uvicorn[standard]>=0.24.0
+pydantic>=2.0.0
+

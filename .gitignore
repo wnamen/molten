@@ -1,0 +1,59 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+env/
+venv/
+ENV/
+build/
+dist/
+*.egg-info/
+
+# ML/Data
+*.pkl
+*.h5
+*.ckpt
+*.pt
+*.pth
+workspace/
+*.csv
+*.parquet
+
+# Model weights
+lora_adapters/
+*.safetensors
+*.bin
+
+# Logs
+*.log
+logs/
+wandb/
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Cache
+.cache/
+.mlebench_cache/
+
+# Results
+baseline_results.json
+improved_results.json
+
+# SSH keys (private keys should never be committed)
+id_ed25519*
+id_rsa
+id_ecdsa
+*.pem
+*.key
+!*.pub
+
