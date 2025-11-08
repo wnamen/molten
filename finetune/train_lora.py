@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """
-Train MoE-aware LoRA adapters on K2-Instruct for ML engineering specialization.
-Uses PEFT library with support for MoE models.
+Train LoRA adapters on Qwen2.5-Coder-32B-Instruct for ML engineering specialization.
+Uses PEFT library; targets attention and MLP layers.
 """
 
 import os
@@ -21,9 +21,11 @@ from transformers import (
 from peft import LoraConfig, get_peft_model, TaskType
 from datasets import load_dataset
 
+
 @dataclass
 class LoRAConfig:
-    """LoRA configuration for MoE models."""
+    """LoRA configuration for transformer decoder models."""
+
     r: int = 16  # Rank
     lora_alpha: int = 32
     target_modules: list = None  # Will set to attention + FFN
@@ -31,10 +33,11 @@ class LoRAConfig:
     bias: str = "none"
     task_type: TaskType = TaskType.CAUSAL_LM
 
+
 def prepare_model_and_tokenizer(model_path: str):
     """Load base model and tokenizer."""
     print(f"Loading model from {model_path}...")
-    
+
     tokenizer = AutoTokenizer.from_pretrained(model_path, trust_remote_code=True)
     model = AutoModelForCausalLM.from_pretrained(
         model_path,
@@ -42,25 +45,29 @@ def prepare_model_and_tokenizer(model_path: str):
         trust_remote_code=True,
         device_map="auto",
     )
-    
+
     # Set pad token if not set
     if tokenizer.pad_token is None:
         tokenizer.pad_token = tokenizer.eos_token
-    
+
     return model, tokenizer
 
+
 def setup_lora_for_moe(model, config: LoRAConfig):
-    """Setup LoRA for MoE model (target attention + FFN, avoid router)."""
-    # For MoE models, target attention layers and FFN (but not router)
-    # K2-Instruct uses standard transformer architecture
-    
+    """Setup LoRA for transformer decoder (target attention + FFN)."""
+
     if config.target_modules is None:
         # Default: target attention and MLP layers
         config.target_modules = [
-            "q_proj", "k_proj", "v_proj", "o_proj",  # Attention
-            "gate_proj", "up_proj", "down_proj",  # MLP
+            "q_proj",
+            "k_proj",
+            "v_proj",
+            "o_proj",  # Attention
+            "gate_proj",
+            "up_proj",
+            "down_proj",  # MLP
         ]
-    
+
     lora_config = LoraConfig(
         r=config.r,
         lora_alpha=config.lora_alpha,
@@ -69,24 +76,26 @@ def setup_lora_for_moe(model, config: LoRAConfig):
         bias=config.bias,
         task_type=config.task_type,
     )
-    
+
     model = get_peft_model(model, lora_config)
     model.print_trainable_parameters()
-    
+
     return model
+
 
 def format_instruction(example: dict) -> str:
     """Format instruction-following example."""
     instruction = example.get("instruction", "")
     input_text = example.get("input", "")
     output = example.get("output", "")
-    
+
     if input_text:
         prompt = f"### Instruction:\n{instruction}\n\n### Input:\n{input_text}\n\n### Response:\n{output}"
     else:
         prompt = f"### Instruction:\n{instruction}\n\n### Response:\n{output}"
-    
+
     return prompt
+
 
 def load_training_data(data_path: Path):
     """Load training data from JSONL."""
@@ -94,10 +103,11 @@ def load_training_data(data_path: Path):
     with open(data_path, "r") as f:
         for line in f:
             examples.append(json.loads(line))
-    
+
     # Format as instruction-following
     formatted = [format_instruction(ex) for ex in examples]
     return formatted
+
 
 def tokenize_function(examples, tokenizer, max_length=2048):
     """Tokenize examples."""
@@ -107,6 +117,7 @@ def tokenize_function(examples, tokenizer, max_length=2048):
         max_length=max_length,
         padding="max_length",
     )
+
 
 def train(
     model_path: str,
@@ -121,24 +132,30 @@ def train(
 ):
     """Train LoRA adapters."""
     lora_config = lora_config or LoRAConfig()
-    
+
     # Load model and tokenizer
     model, tokenizer = prepare_model_and_tokenizer(model_path)
-    
+
     # Setup LoRA
     model = setup_lora_for_moe(model, lora_config)
-    
+
     # Load training data
     print(f"Loading training data from {data_path}...")
     examples = load_training_data(data_path)
-    
+
     # Tokenize
     tokenized = tokenize_function(examples, tokenizer, max_length=max_length)
-    
+
     # Create dataset
     from datasets import Dataset
-    dataset = Dataset.from_dict({"input_ids": tokenized["input_ids"], "attention_mask": tokenized["attention_mask"]})
-    
+
+    dataset = Dataset.from_dict(
+        {
+            "input_ids": tokenized["input_ids"],
+            "attention_mask": tokenized["attention_mask"],
+        }
+    )
+
     # Training arguments
     training_args = TrainingArguments(
         output_dir=str(output_dir),
@@ -154,13 +171,13 @@ def train(
         warmup_steps=50,
         report_to="none",
     )
-    
+
     # Data collator
     data_collator = DataCollatorForLanguageModeling(
         tokenizer=tokenizer,
         mlm=False,
     )
-    
+
     # Trainer
     trainer = Trainer(
         model=model,
@@ -168,23 +185,31 @@ def train(
         train_dataset=dataset,
         data_collator=data_collator,
     )
-    
+
     # Train
     print("Starting training...")
     trainer.train()
-    
+
     # Save
     print(f"Saving adapters to {output_dir}...")
     model.save_pretrained(output_dir)
     tokenizer.save_pretrained(output_dir)
-    
+
     print("✓ Training complete!")
+
 
 def main():
     import argparse
-    parser = argparse.ArgumentParser(description="Train LoRA adapters on K2-Instruct")
-    parser.add_argument("--model-path", type=str, default="MoonshotAI/Kimi-K2-Instruct")
-    parser.add_argument("--data-path", type=str, required=True, help="Path to training JSONL")
+
+    parser = argparse.ArgumentParser(
+        description="Train LoRA adapters on Qwen2.5-Coder-32B-Instruct"
+    )
+    parser.add_argument(
+        "--model-path", type=str, default="Qwen/Qwen2.5-Coder-32B-Instruct"
+    )
+    parser.add_argument(
+        "--data-path", type=str, required=True, help="Path to training JSONL"
+    )
     parser.add_argument("--output-dir", type=str, default="./lora_adapters")
     parser.add_argument("--lora-r", type=int, default=16)
     parser.add_argument("--lora-alpha", type=int, default=32)
@@ -193,14 +218,14 @@ def main():
     parser.add_argument("--gradient-accumulation", type=int, default=4)
     parser.add_argument("--learning-rate", type=float, default=2e-4)
     parser.add_argument("--max-length", type=int, default=2048)
-    
+
     args = parser.parse_args()
-    
+
     lora_config = LoRAConfig(
         r=args.lora_r,
         lora_alpha=args.lora_alpha,
     )
-    
+
     train(
         model_path=args.model_path,
         data_path=Path(args.data_path),
@@ -213,6 +238,6 @@ def main():
         max_length=args.max_length,
     )
 
+
 if __name__ == "__main__":
     main()
-
